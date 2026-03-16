@@ -1,32 +1,12 @@
 # confusion-scan-action
 
-GitHub Action for [confusion-scan](https://github.com/confusion-scan/confusion-scan).
+GitHub Action for [confusion-scan](https://github.com/0x2a4/confusion-scan).
 
-Scans pull requests for confusing code patterns and posts results as a PR comment.
-
----
-
-## What it posts
-
-Every PR gets a comment like this:
-
-**3 issues detected** across 18 files.
-
-- 1 misleading name
-- 1 high complexity function
-- 1 dead file
-
-| Type | Location | Detail |
-|------|----------|--------|
-| ⚠ Misleading name | `auth.js:12` | `getUserData()` implies a read but also calls: setItem, delete |
-| ⚠ High complexity | `server.js:204` | `handleRequest()` has cyclomatic complexity of 18 |
-| ⚠ Dead file | `helpers/legacyUtils.js` | `helpers/legacyUtils.js` is never imported |
-
-The comment updates automatically on each new commit to the PR.
+Automatically scans pull requests for confusing code patterns and posts results as a PR comment with inline annotations.
 
 ---
 
-## Setup
+## Quickstart
 
 Add this file to your repo:
 
@@ -37,39 +17,59 @@ name: Confusion Scan
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     permissions:
+      checks: write
       pull-requests: write
       contents: read
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: confusion-scan/confusion-scan-action@v1
-        with:
-          directory: .
+      - uses: 0x2a4/confusion-scan-action@v1
 ```
 
 That's it. No configuration required.
 
 ---
 
+## What it posts
+
+Every PR gets a comment showing only issues introduced in changed files:
+
+**3 issues found in 2 changed files.**
+Confusion score: **83/100**
+
+- 1 misleading name
+- 1 duplicate logic block
+- 1 high-complexity function
+
+| Type | Location | Detail |
+|------|----------|--------|
+| ⚠ Misleading name | `auth.js:12` | `getUserData()` implies a read but also calls: setItem, delete |
+| ⚠ Duplicate logic | — | Identical function body appears in 2 files |
+| ⚠ High complexity | `server.js:204` | `handleRequest()` has cyclomatic complexity of 18 |
+
+The comment updates automatically on each new commit. Clean PRs get a ✅.
+
+Inline annotations appear directly in the diff view pointing to the exact lines.
+
+---
+
 ## Options
 
 | Input | Description | Default |
-|---|---|---|
+|-------|-------------|---------|
 | `directory` | Directory to scan | `.` |
 | `ignore` | Comma-separated directories to skip | `''` |
-| `github-token` | Token used to post PR comments | `${{ github.token }}` |
+| `github-token` | Token for posting comments and creating check runs | `${{ github.token }}` |
 
 **Example with options:**
 
 ```yaml
-- uses: confusion-scan/confusion-scan-action@v1
+- uses: 0x2a4/confusion-scan-action@v1
   with:
     directory: ./src
     ignore: generated,migrations,__snapshots__
@@ -77,21 +77,38 @@ That's it. No configuration required.
 
 ---
 
-## Permissions
+## Configuration
 
-The action needs `pull-requests: write` to post comments.
-The default `GITHUB_TOKEN` provided automatically by GitHub is sufficient.
+Add a `.confusionscanrc` file to your project root to override default thresholds:
+
+```json
+{
+  "maxFileLines": 400,
+  "maxFunctionLines": 80,
+  "maxComplexity": 15,
+  "ignore": ["generated", "vendor"]
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `maxFileLines` | `300` | Flag files over this many lines |
+| `maxFunctionLines` | `60` | Flag functions over this many lines |
+| `maxComplexity` | `10` | Flag functions over this cyclomatic complexity |
+| `ignore` | `[]` | Additional directories to skip |
 
 ---
 
-## How it works
+## Permissions
 
-1. Installs `confusion-scan` via npm
-2. Runs `confusion-scan <directory> --json`
-3. Formats results as a markdown table
-4. Posts or updates a comment on the pull request
+```yaml
+permissions:
+  checks: write        # required for inline annotations
+  pull-requests: write # required for PR comment
+  contents: read       # required to checkout code
+```
 
-On clean scans it posts a ✅ confirmation. On subsequent pushes it updates the existing comment instead of creating a new one.
+The default `GITHUB_TOKEN` provided by GitHub Actions is sufficient — no secrets setup needed.
 
 ---
 
