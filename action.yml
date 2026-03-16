@@ -1,0 +1,42 @@
+name: 'Confusion Scan'
+description: 'Scan pull requests for misleading names, duplicate logic, dead files, and oversized functions.'
+
+inputs:
+  directory:
+    description: 'Directory to scan (relative to repo root)'
+    required: false
+    default: '.'
+  ignore:
+    description: 'Comma-separated list of directories to skip'
+    required: false
+    default: ''
+  github-token:
+    description: 'GitHub token used to post PR comments'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install confusion-scan
+      shell: bash
+      run: npm install -g confusion-scan@latest
+
+    - name: Run confusion-scan
+      shell: bash
+      run: |
+        IGNORE_FLAG=""
+        if [ -n "${{ inputs.ignore }}" ]; then
+          IGNORE_FLAG="--ignore ${{ inputs.ignore }}"
+        fi
+        npx confusion-scan "${{ inputs.directory }}" $IGNORE_FLAG --json > /tmp/confusion-scan-results.json || true
+
+    - name: Post PR comment
+      shell: bash
+      run: node "${{ github.action_path }}/src/post-comment.js"
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        RESULTS_FILE: /tmp/confusion-scan-results.json
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}

@@ -1,0 +1,7 @@
+{
+  "name": "confusion-scan-action",
+  "version": "1.0.0",
+  "description": "GitHub Action for confusion-scan — posts PR comments with confusing code patterns.",
+  "private": true,
+  "license": "MIT"
+}
